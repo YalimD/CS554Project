@@ -1,14 +1,14 @@
 function [log_prob] = CalculatePixelProb(voxel_count, bounds, images, masks,...
     camera_intrinsic, camera_extrinsics)
 
-    x_bounds = bounds(1);
-    y_bounds = bounds(2);
-    z_bounds = bounds(3);
+    x_bounds = bounds{1};
+    y_bounds = bounds{2};
+    z_bounds = bounds{3};
 
     log_prob = zeros(voxel_count,voxel_count,voxel_count);
     
-    cam_rots = camera_extrinsics(1);
-    cam_trans = camera_extrinsics(2);
+    cam_rots = camera_extrinsics{1};
+    cam_trans = camera_extrinsics{2};
     
     foreground_model = masks(1);
     background_model = masks(2);
@@ -23,9 +23,10 @@ function [log_prob] = CalculatePixelProb(voxel_count, bounds, images, masks,...
     %For each camera, project and btain the pixel
     for cam_i=1:size(camera_extrinsics,2)
         
-        rot = cam_rots(cam_i);
-        trans = cam_trans(cam_i);
-
+        rot = cam_rots{cam_i};
+        trans = cam_trans{cam_i};
+        
+        % DONT FORGET, THE AXIS OF 3D SPACE IS WHERE Y IS UP.
         image_points = worldToImage(camera_intrinsic, rot, trans, world_points);
         
         image_points = sub2ind(size(image_points,1), image_points(:,1), ...
@@ -38,10 +39,10 @@ function [log_prob] = CalculatePixelProb(voxel_count, bounds, images, masks,...
         
         %% TODO: These should be fixed to 1
         obj_probs = obj_probs * ...
-            mvnpdf(pixels, foreground_model.mu, foreground_model.Sigma);
+            posterior(foreground_model, pixels);
         
         back_probs = back_probs * ...
-             (1 - mvnpdf(pixels, background_model.mu, background_model.Sigma));
+             (1 - mvnpdf(background_model, pixels));
 
     end
     

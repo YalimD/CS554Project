@@ -21,7 +21,7 @@ function [u_volume] = Volume(images, masks, camera_intrinsics, camera_extrinsics
     y_bounds = [-10,10];
     y_step = (y_bounds(2) - y_bounds(1)) / voxel_count;
     
-    z_bounds = [0,20];
+    z_bounds = [10,30];
     z_step = (z_bounds(2) - z_bounds(1)) / voxel_count;
     
     bounds = {x_bounds, y_bounds, z_bounds};
@@ -88,7 +88,7 @@ function [u_volume] = Volume(images, masks, camera_intrinsics, camera_extrinsics
             xi_x, xi_y, xi_z);
                
         %Find probs that pixel belongs to foregorund of background
-        log_prob = CalculatePixelProb(voxel_count, [pos_volumes_x pos_volumes_y pos_volumes_z], images, masks, camera_intrinsics, camera_extrinsics);
+        log_prob = CalculatePixelProb(voxel_count, {pos_volumes_x pos_volumes_y pos_volumes_z}, images, masks, camera_intrinsics, camera_extrinsics);
         
         update_term = tau * (nu * div - log_prob);
         
