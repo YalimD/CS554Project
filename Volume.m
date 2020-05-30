@@ -7,7 +7,7 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
     
     %TODO: Voxel must be placed such that its center is 0,0,0. This is
     %necessary for it to be compliant with the camera extrinsic parameters
-    voxel_count = 100;
+    voxel_count = 50;
     u_volume = zeros(voxel_count,voxel_count,voxel_count) + 0.5;
     u_volume_next = u_volume;
     
@@ -30,11 +30,7 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
                                         y_bounds(1):y_step: y_bounds(2) - y_step, ...
                                         z_bounds(1):z_step: z_bounds(2) - z_step);
                                     
-                                    
-                    
-    
     % Put gaussian noise into xi vector field components
-    %TODO: Try other configuraions
     xi_x = rand(voxel_count,voxel_count,voxel_count);
     xi_y = rand(voxel_count,voxel_count,voxel_count);
     xi_z = rand(voxel_count,voxel_count,voxel_count);
@@ -47,6 +43,17 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
     sigma = 0.1;
     tau = 0.1;
     nu = 1.8;
+    
+    %TODO: Render the latest volume
+    
+    figure;
+    
+    [vol_handle]=VoxelPlotter(round(u_volume),1); 
+    %visual effects (I recommend using the FigureRotator function from MATLAB
+    %Centeral
+    view(3);
+    daspect([1,1,1]);
+    set(gca,'xlim',[-10 voxel_count + 10], 'ylim',[-10 voxel_count + 10], 'zlim',[-10 voxel_count + 10], 'YDir','reverse');
     
     %%Iterative process for energy minimization
     for n=1:1:1000
@@ -101,10 +108,15 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
         u_bar_volume = 2 * u_volume_next - u_volume;
         
         u_volume = u_volume_next;
-        
-        %TODO: Render the latest volume
-        
+
         fprintf('Done with iteration %d \n', n);
+        
+        [vol_handle]=VoxelPlotter(round(u_volume),1); 
+        %visual effects (I recommend using the FigureRotator function from MATLAB
+        %Centeral
+        view(3);
+        daspect([1,1,1]);
+        set(gca,'xlim',[-10 voxel_count + 10], 'ylim',[-10 voxel_count + 10], 'zlim',[-10 voxel_count + 10], 'YDir','reverse');
         
     end
 
