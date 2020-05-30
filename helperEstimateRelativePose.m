@@ -38,10 +38,10 @@ if ~isnumeric(matchedPoints2)
     matchedPoints2 = matchedPoints2.Location;
 end
 
-for i = 1:1000
+for i = 1:10000
     % Estimate the essential matrix.    
     [E, inlierIdx] = estimateEssentialMatrix(matchedPoints1, matchedPoints2,...
-        cameraParams, 'MaxDistance', 0.1, 'MaxNumTrials', 100000, 'Confidence', 0.6);
+        cameraParams, 'MaxDistance', 0.25, 'MaxNumTrials', 100000, 'Confidence', 0.4);
 
     % Make sure we get enough inliers
     if sum(inlierIdx) / numel(inlierIdx) < .3

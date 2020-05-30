@@ -1,4 +1,4 @@
-function [foreground_model, background_model] = DetermineColorModels(I, I2)
+function [color_model] = DetermineColorModels(I, I2)
 
    % Get segmented ones
     [S1, M1] = segment(I);
@@ -47,5 +47,12 @@ function [foreground_model, background_model] = DetermineColorModels(I, I2)
     %Define a gaussian for foreground
     foreground_model = fitgmdist(foreground_colors, 1);
     background_model = fitgmdist(background_colors, 1);
+    
+    means = [foreground_model.mu; background_model.mu];
+    sigmas = zeros(3,3,2);
+    sigmas(:,:,1) = foreground_model.Sigma;
+    sigmas(:,:,2) = background_model.Sigma;
+    
+    color_model = gmdistribution(means, sigmas);
 
 end

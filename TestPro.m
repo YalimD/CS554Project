@@ -2,7 +2,7 @@ clear all;
 close all;
 clc;
 
-useVideo = true;
+useVideo = false;
 
 if useVideo == false
     % Load camera parameters
@@ -32,7 +32,7 @@ else
     images = cell(1, 1000);
 
     number_of_images = 0;
-    frame_step = 10;
+    frame_step = 5;
     current_step = 0;
 
     while hasFrame(vd)
@@ -87,7 +87,7 @@ viewSet = addView(viewSet, viewId, rigid3d, 'Points', prevPoints);
 
 %Need at least 2 views for this, determine foreground and background models
 %depending on the color distributions. Uses GMM
-[foreground_model, background_model] = DetermineColorModels(images{1}, images{2});
+[color_model] = DetermineColorModels(images{1}, images{2});
 
 figure;
 
@@ -186,9 +186,9 @@ hold off
 % Specify the viewing volume.
 % TODO: GOTTA SPECIFY THIS BETTER
 loc1 = camPoses.AbsolutePose(1).Translation;
-xlim([loc1(1)-5, loc1(1)+4]);
-ylim([loc1(2)-5, loc1(2)+4]);
-zlim([loc1(3)-1, loc1(3)+20]);
+xlim([loc1(1)-10, loc1(1)+10]);
+ylim([loc1(2)-10, loc1(2)+10]);
+zlim([loc1(3)-10, loc1(3)+30]);
 camorbit(0, -30);
 
 title('Refined Camera Poses');
@@ -196,9 +196,8 @@ title('Refined Camera Poses');
 %% Volume fitting
 
 images = images(1:progressed_images+1);
-masks = {foreground_model, background_model};
 
 %%Gonna get multiple camera configurations for every image after first ones
 %TODO: IT MIGHT ALSO BE BETTER TO SEND THE VOLUME LOCATIONS RELATIVE TO
 %CAMERA POSITIONS
-Volume(images, masks, cameraParams, viewSet);
+Volume(images, color_model, cameraParams, viewSet);

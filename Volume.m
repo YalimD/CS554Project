@@ -1,4 +1,4 @@
-function [u_volume] = Volume(images, masks, camera_intrinsics, cameras)
+function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
     
     %Create the volume
     %Initialize the surface variables (u) for each voxel to 0.5
@@ -89,7 +89,7 @@ function [u_volume] = Volume(images, masks, camera_intrinsics, cameras)
                
         %Find probs that pixel belongs to foregorund of background
         log_prob = CalculatePixelProb(voxel_count, {pos_volumes_x pos_volumes_y pos_volumes_z}, ...
-            images, masks, camera_intrinsics, cameras);
+            images, color_model, camera_intrinsics, cameras);
         
         update_term = tau * (nu * div - log_prob);
         
@@ -102,7 +102,9 @@ function [u_volume] = Volume(images, masks, camera_intrinsics, cameras)
         
         u_volume = u_volume_next;
         
-        fprintf('Done with iteration %d', n);
+        %TODO: Render the latest volume
+        
+        fprintf('Done with iteration %d \n', n);
         
     end
 
