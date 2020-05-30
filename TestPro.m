@@ -2,283 +2,203 @@ clear all;
 close all;
 clc;
 
-%%TODO: Do this for video where multiple frames exist
+useVideo = true;
 
-% Load camera parameters
-load('cameraParams.mat');
+if useVideo == false
+    % Load camera parameters
+    load('cameraParams.mat');
 
-% Load images from folder
-data_dir = 'CV_Data\\mov_cam';
-pattern = dir(fullfile(data_dir, 'IMG*.jpg'));
+%     Load images from folder
 
-data_dir = 'test';
-pattern = dir(fullfile(data_dir, 'ab*.jpg'));
+    data_dir = 'test';
+    pattern = dir(fullfile(data_dir, 'ab*.jpg'));
 
-number_of_images = numel(pattern);
-images = cell(1, number_of_images);
+%     data_dir = 'CV_Data\\mov_cam';
+%     pattern = dir(fullfile(data_dir, 'IMG*.jpg'));
 
-for im = 1:numel(pattern)
-    
-    file = fullfile(data_dir, pattern(im).name);
-    images{im} = imread(file);
-end
+    number_of_images = numel(pattern);
+    images = cell(1, number_of_images);
 
+    for im = 1:numel(pattern)
 
-loaded = load('cameraParamsVideo.mat');
-cameraParams = loaded.cameraParamsVideo;
-
-vd = VideoReader('CV_Data\\video3.mp4');
-images = cell(1, 1000);
-
-number_of_images = 0;
-frame_step = 30;
-current_step = 0;
-
-while hasFrame(vd)
-    if mod(current_step, frame_step) == 0
-        image = readFrame(vd);
-        number_of_images = number_of_images + 1;
-        images{number_of_images} = image;
-        
-        current_step = 0;
-    else
-        %Pass the frame
-        readFrame(vd);
+        file = fullfile(data_dir, pattern(im).name);
+        images{im} = imread(file);
     end
-        
-    current_step = current_step + 1;
-   
+else
+    loaded = load('cameraParamsVideo.mat');
+    cameraParams = loaded.cameraParamsVideo;
+
+    vd = VideoReader('CV_Data\\video3.mp4');
+    images = cell(1, 1000);
+
+    number_of_images = 0;
+    frame_step = 10;
+    current_step = 0;
+
+    while hasFrame(vd)
+        if mod(current_step, frame_step) == 0
+            image = readFrame(vd);
+            number_of_images = number_of_images + 1;
+            images{number_of_images} = image;
+
+            current_step = 0;
+        else
+    %         Pass the frame
+            readFrame(vd);
+        end
+
+        current_step = current_step + 1;
+
+    end
+
 end
 
-fprintf('Number of images read %i', number_of_images);
-
-%%For every pair of image (moving window):
-% Find foreground image and mask
-% Find exterinsic camera configuration
-
-latest_camera_R = eye(3);
-latest_camera_t = [0,0,0];
-
-camera_rotations = cell(1, number_of_images);
-camera_translations = cell(1, number_of_images);
-
-camera_rotations{1} = latest_camera_R;
-camera_translations{1} = latest_camera_t;
+fprintf('Number of images read %i \n', number_of_images);
 
 progressed_images = 0;
 
-for im = 1:number_of_images-1
+%Process the first image to determine the initial features, segmentation and coordinates
+I = images{1};
+I = undistortImage(I, cameraParams, 'OutputView','valid');
+
+% prevPoints = detectMinEigenFeatures(rgb2gray(I), 'MinQuality', 0.1);
+
+% Create the point tracker
+% tracker = vision.PointTracker('MaxBidirectionalError', 1, 'NumPyramidLevels', 5);
+% prevPoints = prevPoints.Location;
+% initialize(tracker, prevPoints, I);
+
+%Azdapted from SFM code
+border = 50;
+roi = [border, border, size(I, 2)- 2*border, size(I, 1)- 2*border];
+prevPoints   = detectSURFFeatures(rgb2gray(I), 'NumOctaves', 8);
+
+% Extract features. Using 'Upright' features improves matching, as long as
+% the camera motion involves little or no in-plane rotation.
+prevFeatures = extractFeatures(rgb2gray(I), prevPoints, 'Upright', true);
+
+% Create a viewset that will maintain the camera configurations through
+% images
+viewSet = imageviewset;
+
+viewId = 1;
+%Rigid3d is a form that contains translation component like in Unity
+viewSet = addView(viewSet, viewId, rigid3d, 'Points', prevPoints);
+
+%Need at least 2 views for this, determine foreground and background models
+%depending on the color distributions. Uses GMM
+[foreground_model, background_model] = DetermineColorModels(images{1}, images{2});
+
+figure;
+
+%%For every pair of image (moving window):
+% Find exterinsic camera configuration
+for im = 2:number_of_images
     
-    I1 = images{im};
-    I2 = images{im + 1};
+    fprintf('Processing image %d \n', im);
     
-    % Display original images
-%     figure;
-%     imshowpair(I1, I2, 'montage'); 
-%     title('Original Images');
-
-    % Undistort images using cameraParams, crop only valid pixels
-    I1 = undistortImage(I1, cameraParams,'OutputView','valid');
-    I2 = undistortImage(I2, cameraParams,'OutputView','valid');
-
-%     % Display undistorted images
-%     figure;
-%     imshowpair(I1, I2, 'montage');
-%     title('Undistorted Images');
-
-    % Detect feature points on I1
-    imagePoints1 = detectMinEigenFeatures(rgb2gray(I1), 'MinQuality', 0.1);
-
-    % Visualize detected points
-    figure;
-    imshow(I1);
-    title('Feature Points in First Image');
-    hold on;
-    plot(imagePoints1);
-
-    % Create the point tracker
-    tracker = vision.PointTracker('MaxBidirectionalError', 1, 'NumPyramidLevels', 5);
-
-    % Initialize the point tracker
-    imagePoints1 = imagePoints1.Location;
-    initialize(tracker, imagePoints1, I1);
-
-    % Track the points
-    [imagePoints2, validIdx] = step(tracker, I2);
-    matchedPoints1 = imagePoints1(validIdx, :);
-    matchedPoints2 = imagePoints2(validIdx, :);
-
-    % Visualize correspondences
-%     figure
-%     showMatchedFeatures(I1, I2, matchedPoints1, matchedPoints2);
-%     title('Tracked Features');
+    I = images{im};
+    prevI = images{im-1};
     
-    if size(matchedPoints1,1) < 8
-        break;
-    end
-
-    % Estimate the fundamental matrix
-    [fMatrix, epipolarInliers] = estimateFundamentalMatrix(...
-      matchedPoints1, matchedPoints2, 'Method', 'MSAC', 'NumTrials', 100000);
-
-    % Find epipolar inliers
-    inlierPoints1 = matchedPoints1(epipolarInliers, :);
-    inlierPoints2 = matchedPoints2(epipolarInliers, :);
-
-    % Display inlier matches
-    figure
-    showMatchedFeatures(I1, I2, inlierPoints1, inlierPoints2);
-    title('Epipolar Inliers');
-
-    [R, t] = relativeCameraPose(fMatrix, cameraParams, inlierPoints1, inlierPoints2);
+    imshowpair(prevI, I, 'montage'); 
     
-    % Some poses give 4 different solutions, where we only use the first
-    % one
-    if size(R,3) > 1
-        R = R(:,:,1);
-        t = t(1,:);
-    end
+    % Undistort image using cameraParams, crop only valid pixels
+    I = undistortImage(I, cameraParams,'OutputView','valid');
+
+    currPoints   = detectSURFFeatures(rgb2gray(I), 'NumOctaves', 8);
+    currFeatures = extractFeatures(rgb2gray(I), currPoints, 'Upright', true);    
+    indexPairs   = matchFeatures(prevFeatures, currFeatures, ...
+        'MaxRatio', .7, 'Unique',  true);
+%     
+%     % Track the points
+%     [currPoints, validIdx] = step(tracker, I);
+%     
+%     % Select matched points.
+%     matchedPointsPrev = prevPoints(validIdx,:);
+%     matchedPointsCurr = currPoints(validIdx,:);
+
+    % Select matched points.
+    matchedPointsPrev = prevPoints(indexPairs(:, 1));
+    matchedPointsCurr = currPoints(indexPairs(:, 2));
+
+    %TODO: This is basically esential matrix version of our fundamental
+    %matrix solution, most probably should be replaced
+    [relativeOrient, relativeLoc, inlierIdx] = helperEstimateRelativePose(...
+                                matchedPointsPrev, matchedPointsCurr, cameraParams);
     
-    %% Segmentation part, it should be enough that we do this par tonlya nd only once
-    if im == 1
-
-        % Get segmented ones
-        [S1, M1] = segment(I1);
-        [S2, M2] = segment(I2);
-
-        % Detect dense feature points
-        imagePoints1 = detectMinEigenFeatures(rgb2gray(S1), 'MinQuality', 0.00001);
-
-        % Create the point tracker
-        tracker = vision.PointTracker('MaxBidirectionalError', 1, 'NumPyramidLevels', 5);
-
-        % Initialize the point tracker
-        imagePoints1 = imagePoints1.Location;
-        initialize(tracker, imagePoints1, S1);
-
-        % Track the points
-        [imagePoints2, validIdx] = step(tracker, S2);
-        matchedPoints1 = imagePoints1(validIdx, :);
-        matchedPoints2 = imagePoints2(validIdx, :);
-
-        % show segments
-        figure
-        showMatchedFeatures(S1, S2, matchedPoints1, matchedPoints2);
-        title('Segment Matches');
-
-        figure;
-        imshowpair(S1, S2, 'montage'); 
-        title('Segmentations');
+    % Get the table containing the previous camera pose.
+    prevPose = poses(viewSet, im-1).AbsolutePose;
+    relPose  = rigid3d(relativeOrient, relativeLoc);
         
-        %Normalize and turn pixels into features
-        
-        foreground = find(M1);
-        background = find(~M1);
-        
-        I1_f = single(I1) / 255;
-        
-        foreground_colors = [];
-        background_colors = [];
-        
-        for c=1:3
-            chan = I1_f(:,:,c);
-            foreground_colors = [foreground_colors , chan(foreground)];
-            background_colors = [background_colors , chan(background)];
-        end
-        
-        %Define a gaussian for foreground
-        foreground_model = fitgmdist(foreground_colors, 1);
-        background_model = fitgmdist(background_colors, 1);
-    end
+    % Compute the current camera pose in the global coordinate system 
+    % relative to the first view.
+    currPose = rigid3d(relPose.T * prevPose.T);
+    
+    % Add the current view to the view set.
+    viewSet = addView(viewSet, im, currPose, 'Points', currPoints);
 
-    % Compute the camera matrices for each position of the camera
-    % The very first camera is at the origin looking along the X-axis. Thus, its
-    % rotation matrix is identity, and its translation vector is 0.
+    % Store the point matches between the previous and the current views.
+%     matches = repmat((1:size(prevPoints, 1))', [1, 2]);
+%     matches = matches(validIdx, :);  
+%     viewSet = addConnection(viewSet, im-1, im, relPose, 'Matches', matches);
+    viewSet = addConnection(viewSet, im-1, im, relPose, 'Matches', indexPairs(inlierIdx,:));
     
-    %For the rest of the cameras, latest camera R and t are recorded
+    % Find point tracks across all views.
+    tracks = findTracks(viewSet);
+
+    % Get the table containing camera poses for all views.
+    camPoses = poses(viewSet);
+   
+    % Triangulate initial locations for the 3-D world points.
+    xyzPoints = triangulateMultiview(tracks, camPoses, cameraParams);
     
-    %Load the camera matrix for the first image
-    latest_camera_R = camera_rotations{im};
-    latest_camera_t = camera_translations{im};
+    % Refine the 3-D world points and camera poses.
+    [xyzPoints, camPoses, reprojectionErrors] = bundleAdjustment(xyzPoints, ...
+        tracks, camPoses, cameraParams, 'FixedViewId', 1, ...
+        'PointsUndistorted', true);
+
+    % Store the refined camera poses.
+    viewSet = updateView(viewSet, camPoses);
     
-    camMatrix1 = cameraMatrix(cameraParams, latest_camera_R, latest_camera_t);
-    
-    latest_camera_R = R * latest_camera_R;
-    latest_camera_t = t * latest_camera_R + latest_camera_t;
-    
-    camMatrix2 = cameraMatrix(cameraParams, latest_camera_R, latest_camera_t);
-  
-    camera_rotations{im + 1} = latest_camera_R;
-    camera_translations{im + 1} = latest_camera_t;
+    prevPoints  = currPoints;  
+    prevFeatures = currFeatures;
     
     progressed_images = progressed_images + 1;
-    
-    close all;
-    
+
 end  
-%% FOR DEBUGGING ONLY, THESE POINTS WON'T BE USED
-% Compute the 3-D points
-points3D = triangulate(matchedPoints1, matchedPoints2, camMatrix1, camMatrix2);
 
-% Get the color of each reconstructed point
-numPixels = size(S1, 1) * size(S1, 2);
-allColors = reshape(S1, [numPixels, 3]);
-colorIdx = sub2ind([size(S1, 1), size(S1, 2)], round(matchedPoints1(:,2)), ...
-    round(matchedPoints1(:, 1)));
-color = allColors(colorIdx, :);
+% Display camera poses.
+camPoses = poses(viewSet);
+figure;
+plotCamera(camPoses, 'Size', 0.2);
+hold on
 
-% Create the point cloud
-% points3D = [0,0,0];
-% color = [0,0,0];
+% Exclude noisy 3-D points.
+goodIdx = (reprojectionErrors < 20);
+xyzPoints = xyzPoints(goodIdx, :);
 
-ptCloud = pointCloud(points3D, 'Color', color);
-
-camera_rotations = camera_rotations(1:progressed_images+1);
-camera_translations = camera_translations(1:progressed_images+1);
-
-
-figure
-grid on
-cameraSize = 0.3;
-for cam = 1:progressed_images+1
-    % Visualize the camera locations and orientations
-
-    if cam == im
-        c_color = 'r';
-    else
-        c_color = 'b';
-    end
-
-    cam_R = camera_rotations{cam};
-    cam_t = camera_translations{cam};
-
-    plotCamera('Location', cam_t, 'Orientation', cam_R,...
-        'Size', cameraSize, 'Color', c_color, 'Label', num2str(cam), 'Opacity', 0);
-    hold on
-
-end
-
-    % Visualize the point cloud
-pcshow(ptCloud, 'VerticalAxis', 'y', 'VerticalAxisDir', 'down', ...
+% Display the 3-D points.
+pcshow(xyzPoints, 'VerticalAxis', 'y', 'VerticalAxisDir', 'down', ...
     'MarkerSize', 45);
+grid on
+hold off
 
-% Rotate and zoom the plot
+% Specify the viewing volume.
+% TODO: GOTTA SPECIFY THIS BETTER
+loc1 = camPoses.AbsolutePose(1).Translation;
+xlim([loc1(1)-5, loc1(1)+4]);
+ylim([loc1(2)-5, loc1(2)+4]);
+zlim([loc1(3)-1, loc1(3)+20]);
 camorbit(0, -30);
-camtarget([25, 0, 25]); % camzoom(1.5);
 
-% Label the axes
-xlabel('x-axis');
-ylabel('y-axis');
-zlabel('z-axis')
-
-title('Up to Scale Reconstruction of the Scene');
-
+title('Refined Camera Poses');
 
 %% Volume fitting
 
 images = images(1:progressed_images+1);
 masks = {foreground_model, background_model};
-camera_extrinsics = {camera_rotations, camera_rotations};
 
 %%Gonna get multiple camera configurations for every image after first ones
-Volume(images, masks, cameraParams, camera_extrinsics);
+%TODO: IT MIGHT ALSO BE BETTER TO SEND THE VOLUME LOCATIONS RELATIVE TO
+%CAMERA POSITIONS
+Volume(images, masks, cameraParams, viewSet);

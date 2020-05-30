@@ -25,7 +25,7 @@ function [segment, BW] = segment(imageToMask)
     
     background = createMask(b1,imageToMask) + createMask(b2,imageToMask) + createMask(b3,imageToMask) + createMask(b4,imageToMask);
     BW = lazysnapping(imageToMask,L,foreground,background);
-    % imshow(labeloverlay(imageToMask,BW,'Colormap',[0 1 0]))
+    imshow(labeloverlay(imageToMask,BW,'Colormap',[0 1 0]))
     
     segment = bsxfun(@times, imageToMask, cast(BW, 'like', imageToMask));
 end
