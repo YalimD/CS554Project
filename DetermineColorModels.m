@@ -1,6 +1,6 @@
 function [color_model] = DetermineColorModels(I, I2)
 
-   % Get segmented ones
+    %% Get segmented ones
     [S1, M1] = segment(I);
     [S2, M2] = segment(I2);
 
@@ -43,8 +43,25 @@ function [color_model] = DetermineColorModels(I, I2)
         foreground_colors = [foreground_colors , chan(foreground)];
         background_colors = [background_colors , chan(background)];
     end
-
-    %Define a gaussian for foreground
+    
+    %% Visualize the colors
+    %TODO: Visualize the model centers etc.
+    figure;
+    sizes = zeros(size(foreground_colors,1),1) + 10;
+    colors = foreground_colors;
+    scatter3(foreground_colors(:,1), foreground_colors(:,2), foreground_colors(:,3), sizes, colors);
+    
+    xlabel("X");
+    ylabel("Y");
+    zlabel("Z");
+    
+    figure;
+    sizes = zeros(size(background_colors,1),1) + 10;
+    colors = background_colors;
+    scatter3(background_colors(:,1), background_colors(:,2), background_colors(:,3), sizes, colors);
+    
+    %% Define a gaussian for foreground and background
+    %TODO: Multiple components if necessary
     foreground_model = fitgmdist(foreground_colors, 1);
     background_model = fitgmdist(background_colors, 1);
     
