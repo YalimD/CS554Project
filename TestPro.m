@@ -2,7 +2,8 @@ clear all;
 close all;
 clc;
 
-useVideo = false;
+%% Load data
+useVideo = true;
 
 if useVideo == false
     % Load camera parameters
@@ -55,9 +56,11 @@ end
 
 fprintf('Number of images read %i \n', number_of_images);
 
+images = images(1:number_of_images);
+
 progressed_images = 0;
 
-%Process the first image to determine the initial features, segmentation and coordinates
+%% Process the first image to determine the initial features, segmentation and coordinates
 I = images{1};
 I = undistortImage(I, cameraParams, 'OutputView','valid');
 
@@ -89,10 +92,14 @@ viewSet = addView(viewSet, viewId, rigid3d, 'Points', prevPoints);
 %depending on the color distributions. Uses GMM
 [color_model] = DetermineColorModels(images{1}, images{2});
 
+
+%% Process other images 
+% For every pair of image find points and track them to obtain camera
+% extrinsics which will be used for inverse projection during volume
+% fitting
+
 figure;
 
-%%For every pair of image (moving window):
-% Find exterinsic camera configuration
 for im = 2:number_of_images
     
     fprintf('Processing image %d \n', im);
@@ -109,14 +116,7 @@ for im = 2:number_of_images
     currFeatures = extractFeatures(rgb2gray(I), currPoints, 'Upright', true);    
     indexPairs   = matchFeatures(prevFeatures, currFeatures, ...
         'MaxRatio', .7, 'Unique',  true);
-%     
-%     % Track the points
-%     [currPoints, validIdx] = step(tracker, I);
-%     
-%     % Select matched points.
-%     matchedPointsPrev = prevPoints(validIdx,:);
-%     matchedPointsCurr = currPoints(validIdx,:);
-
+    
     % Select matched points.
     matchedPointsPrev = prevPoints(indexPairs(:, 1));
     matchedPointsCurr = currPoints(indexPairs(:, 2));
@@ -138,9 +138,6 @@ for im = 2:number_of_images
     viewSet = addView(viewSet, im, currPose, 'Points', currPoints);
 
     % Store the point matches between the previous and the current views.
-%     matches = repmat((1:size(prevPoints, 1))', [1, 2]);
-%     matches = matches(validIdx, :);  
-%     viewSet = addConnection(viewSet, im-1, im, relPose, 'Matches', matches);
     viewSet = addConnection(viewSet, im-1, im, relPose, 'Matches', indexPairs(inlierIdx,:));
     
     % Find point tracks across all views.
@@ -167,6 +164,63 @@ for im = 2:number_of_images
 
 end  
 
+%% Process the cams again to obtain a denser set of points
+% Read and undistort the first image
+I = undistortImage(images{1}, cameraParams);
+I = rgb2gray(I);
+
+% Detect corners in the first image.
+prevPoints = detectMinEigenFeatures(I, 'MinQuality', 0.001);
+
+% Create the point tracker object to track the points across views.
+tracker = vision.PointTracker('MaxBidirectionalError', 3, 'NumPyramidLevels', 6);
+
+% Initialize the point tracker.
+prevPoints = prevPoints.Location;
+initialize(tracker, prevPoints, I);
+
+% Store the dense points in the view set.
+
+viewSet = updateConnection(viewSet, 1, 2, 'Matches', zeros(0, 2));
+viewSet = updateView(viewSet, 1, 'Points', prevPoints);
+
+% Track the points across all views.
+for i = 2:numel(images)
+    % Read and undistort the current image.
+    I = undistortImage(images{i}, cameraParams); 
+    I = rgb2gray(I);
+    
+    % Track the points.
+    [currPoints, validIdx] = step(tracker, I);
+    
+    % Clear the old matches between the points.
+    if i < numel(images)
+        viewSet = updateConnection(viewSet, i, i+1, 'Matches', zeros(0, 2));
+    end
+    viewSet = updateView(viewSet, i, 'Points', currPoints);
+    
+    % Store the point matches in the view set.
+    matches = repmat((1:size(prevPoints, 1))', [1, 2]);
+    matches = matches(validIdx, :);  
+   
+    viewSet = updateConnection(viewSet, i-1, i, 'Matches', matches);
+end
+
+% Find point tracks across all views.
+tracks = findTracks(viewSet);
+
+% Find point tracks across all views.
+camPoses = poses(viewSet);
+
+% Triangulate initial locations for the 3-D world points.
+xyzPoints = triangulateMultiview(tracks, camPoses,...
+    cameraParams);
+
+% Refine the 3-D world points and camera poses.
+[xyzPoints, camPoses, reprojectionErrors] = bundleAdjustment(...
+    xyzPoints, tracks, camPoses, cameraParams, 'FixedViewId', 1, ...
+    'PointsUndistorted', true);
+
 % Display camera poses.
 camPoses = poses(viewSet);
 figure;
@@ -174,7 +228,7 @@ plotCamera(camPoses, 'Size', 0.2);
 hold on
 
 % Exclude noisy 3-D points.
-goodIdx = (reprojectionErrors < 20);
+goodIdx = (reprojectionErrors < 100);
 xyzPoints = xyzPoints(goodIdx, :);
 
 % Display the 3-D points.
@@ -184,20 +238,17 @@ grid on
 hold off
 
 % Specify the viewing volume.
-% TODO: GOTTA SPECIFY THIS BETTER
 loc1 = camPoses.AbsolutePose(1).Translation;
 xlim([loc1(1)-10, loc1(1)+10]);
 ylim([loc1(2)-10, loc1(2)+10]);
 zlim([loc1(3)-10, loc1(3)+30]);
 camorbit(0, -30);
 
-title('Refined Camera Poses');
+title('Refined Camera Poses with Dense Poses');
 
 %% Volume fitting
 
 images = images(1:progressed_images+1);
 
 %%Gonna get multiple camera configurations for every image after first ones
-%TODO: IT MIGHT ALSO BE BETTER TO SEND THE VOLUME LOCATIONS RELATIVE TO
-%CAMERA POSITIONS
 Volume(images, color_model, cameraParams, viewSet);

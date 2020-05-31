@@ -50,12 +50,6 @@ function [log_prob] = CalculatePixelProb(voxel_count, bounds, images, color_mode
         pixels(:,2) = current_image(image_points_green);
         pixels(:,3) = current_image(image_points_blue);
         
-%         temp_obj_probs = ones(obj_probs);
-%         temp_obj_probs(withinImageFilter) = posterior(foreground_model, pixels);
-%         temp_back_probs = ones(back_probs);
-%         
-%         obj_probs = temp_obj_probs;
-        
         pixels = pixels / 255;
         
         probs = posterior(color_model, pixels);

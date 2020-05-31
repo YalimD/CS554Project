@@ -7,8 +7,8 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
     
     %TODO: Voxel must be placed such that its center is 0,0,0. This is
     %necessary for it to be compliant with the camera extrinsic parameters
-    voxel_count = 50;
-    u_volume = zeros(voxel_count,voxel_count,voxel_count) + 0.5;
+    voxel_count = 80;
+    u_volume = zeros(voxel_count,voxel_count,voxel_count);
     u_volume_next = u_volume;
     
     u_bar_volume = u_volume;
@@ -56,7 +56,7 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
     set(gca,'xlim',[-10 voxel_count + 10], 'ylim',[-10 voxel_count + 10], 'zlim',[-10 voxel_count + 10], 'YDir','reverse');
     
     %%Iterative process for energy minimization
-    for n=1:1:1000
+    for n=1:1:10000
         
         %For each voxel in the volume, calculate the divergence and
         %graident according to u and xi

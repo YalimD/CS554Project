@@ -11,17 +11,17 @@ function [color_model] = DetermineColorModels(I, I2)
     tracker = vision.PointTracker('MaxBidirectionalError', 1, 'NumPyramidLevels', 5);
 
     % Initialize the point tracker
-    imagePoints = imagePoints.Location;
-    initialize(tracker, imagePoints, S1);
+    imagePoints1 = imagePoints.Location;
+    initialize(tracker, imagePoints1, S1);
 
     % Track the points
-    [imagePoints, validIdx] = step(tracker, S2);
-    matchedPoints1 = imagePoints(validIdx, :);
-    matchedPoints = imagePoints(validIdx, :);
+    [imagePoints2, validIdx] = step(tracker, S2);
+    matchedPoints1 = imagePoints1(validIdx, :);
+    matchedPoints2 = imagePoints2(validIdx, :);
 
     % show segments
     figure
-    showMatchedFeatures(S1, S2, matchedPoints1, matchedPoints);
+    showMatchedFeatures(S1, S2, matchedPoints1, matchedPoints2);
     title('Segment Matches');
 
     figure;
