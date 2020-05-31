@@ -44,8 +44,6 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
     tau = 0.1;
     nu = 1.8;
     
-    %TODO: Render the latest volume
-    
     figure;
     
     [vol_handle]=VoxelPlotter(round(u_volume),1); 

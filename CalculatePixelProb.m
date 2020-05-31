@@ -16,7 +16,7 @@ function [log_prob] = CalculatePixelProb(voxel_count, bounds, images, color_mode
     number_of_cams = size(camPoses,1);
     
     %For each camera, project and btain the pixel
-    %TODO: Size is differenet
+    %    %TODO: Convert this to lab
     for cam_i=1:number_of_cams
         
         rot = camPoses.AbsolutePose(cam_i).Rotation;
