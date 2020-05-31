@@ -33,32 +33,46 @@ function [color_model] = DetermineColorModels(I, I2)
     foreground = find(M1);
     background = find(~M1);
 
-    I1_f = single(I) / 255;
+    I1_RGB = single(I) / 255;
+    I1_LAB = rgb2lab(I1_RGB);
 
     foreground_colors = [];
+    foreground_colors_rgb = [];
+    
     background_colors = [];
+    background_colors_rgb = [];
 
     for c=1:3
-        chan = I1_f(:,:,c);
+        chan = I1_LAB(:,:,c);
         foreground_colors = [foreground_colors , chan(foreground)];
         background_colors = [background_colors , chan(background)];
+        
+        chan_rgb = I1_RGB(:,:,c);
+        foreground_colors_rgb = [foreground_colors_rgb , chan_rgb(foreground)];
+        background_colors_rgb = [background_colors_rgb , chan_rgb(background)];
     end
     
     %% Visualize the colors
     %TODO: Visualize the model centers etc.
     figure;
     sizes = zeros(size(foreground_colors,1),1) + 10;
-    colors = foreground_colors;
+    colors = foreground_colors_rgb;
     scatter3(foreground_colors(:,1), foreground_colors(:,2), foreground_colors(:,3), sizes, colors);
+    set(gca,'XLim',[0 100],'YLim',[-100 100],'ZLim',[-100 100]);
     
-    xlabel("X");
-    ylabel("Y");
-    zlabel("Z");
+    xlabel("L");
+    ylabel("A");
+    zlabel("B");
     
     figure;
     sizes = zeros(size(background_colors,1),1) + 10;
-    colors = background_colors;
+    colors = background_colors_rgb;
     scatter3(background_colors(:,1), background_colors(:,2), background_colors(:,3), sizes, colors);
+    set(gca,'XLim',[0 100],'YLim',[-100 100],'ZLim',[-100 100]);
+    
+    xlabel("L");
+    ylabel("A");
+    zlabel("B");
     
     %% Define a gaussian for foreground and background
     %TODO: Multiple components if necessary
