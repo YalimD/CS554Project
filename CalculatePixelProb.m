@@ -16,14 +16,16 @@ function [log_prob] = CalculatePixelProb(voxel_count, bounds, images, color_mode
     number_of_cams = size(camPoses,1);
     
     %For each camera, project and btain the pixel
-    %    %TODO: Convert this to lab
     for cam_i=1:number_of_cams
         
         rot = camPoses.AbsolutePose(cam_i).Rotation;
         trans = camPoses.AbsolutePose(cam_i).Translation;
         
-        % DONT FORGET, THE AXIS OF 3D SPACE IS WHERE Y IS UP.
         image_points = worldToImage(camera_intrinsic, rot, trans, world_points);
+        
+        v = image_points(:,1);
+        image_points(:,1) = image_points(:,2);
+        image_points(:,2) = v;
         
         current_image = images{cam_i};
         current_image = rgb2lab(current_image);
@@ -39,19 +41,21 @@ function [log_prob] = CalculatePixelProb(voxel_count, bounds, images, color_mode
         filtered_image_points = image_points(withinImageFilter,:);
         
         %Convert the positions into indices
-        image_points_red = sub2ind(size(current_image), filtered_image_points(:,1), ...
+        image_points_l = sub2ind(size(current_image), filtered_image_points(:,1), ...
                                                      filtered_image_points(:,2), ones(size(filtered_image_points,1),1));
-        image_points_green = sub2ind(size(current_image), filtered_image_points(:,1), ...
+        image_points_a = sub2ind(size(current_image), filtered_image_points(:,1), ...
                                                      filtered_image_points(:,2), ones(size(filtered_image_points,1),1) + 1);
-        image_points_blue = sub2ind(size(current_image), filtered_image_points(:,1), ...
+        image_points_b = sub2ind(size(current_image), filtered_image_points(:,1), ...
                                                      filtered_image_points(:,2), ones(size(filtered_image_points,1),1) + 2);
          
         pixels = zeros(size(filtered_image_points,1), 3);
-        pixels(:,1) = current_image(image_points_red);
-        pixels(:,2) = current_image(image_points_green);
-        pixels(:,3) = current_image(image_points_blue);
+        pixels(:,1) = current_image(image_points_l);
+        pixels(:,2) = current_image(image_points_a);
+        pixels(:,3) = current_image(image_points_b);
         
-        pixels = pixels / 255;
+        pixels(:,1) = pixels(:,1) / 100;
+        pixels(:,2) = (pixels(:,2) + 100) / 200;
+        pixels(:,3) = (pixels(:,3) + 100) / 200;
         
         probs = posterior(color_model, pixels);
         foreground_probs = probs(:,1);
@@ -69,7 +73,7 @@ function [log_prob] = CalculatePixelProb(voxel_count, bounds, images, color_mode
     log_prob_2d = log(back_probs ./ obj_probs);
     
     i = 1;
-    %TODO: This log prob form must be converted to 3d voxel model
+    %This log prob form must be converted to 3d voxel model
     for v_z=1:voxel_count
         for v_x=1:voxel_count
             for v_y=1:voxel_count

@@ -7,7 +7,7 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
     
     %TODO: Voxel must be placed such that its center is 0,0,0. This is
     %necessary for it to be compliant with the camera extrinsic parameters
-    voxel_count = 80;
+    voxel_count = 20;
     u_volume = zeros(voxel_count,voxel_count,voxel_count);
     u_volume_next = u_volume;
     
@@ -21,7 +21,7 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
     y_bounds = [-10,10];
     y_step = (y_bounds(2) - y_bounds(1)) / voxel_count;
     
-    z_bounds = [10,30];
+    z_bounds = [20,50];
     z_step = (z_bounds(2) - z_bounds(1)) / voxel_count;
     
     bounds = {x_bounds, y_bounds, z_bounds};
@@ -52,6 +52,10 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
     view(3);
     daspect([1,1,1]);
     set(gca,'xlim',[-10 voxel_count + 10], 'ylim',[-10 voxel_count + 10], 'zlim',[-10 voxel_count + 10], 'YDir','reverse');
+    
+    xlabel("X");
+    ylabel("Y");
+    zlabel("Z");
     
     %%Iterative process for energy minimization
     for n=1:1:10000
@@ -115,6 +119,10 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
         view(3);
         daspect([1,1,1]);
         set(gca,'xlim',[-10 voxel_count + 10], 'ylim',[-10 voxel_count + 10], 'zlim',[-10 voxel_count + 10], 'YDir','reverse');
+        
+        xlabel("X");
+        ylabel("Y");
+        zlabel("Z");
         
     end
 

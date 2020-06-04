@@ -35,6 +35,10 @@ function [color_model] = DetermineColorModels(I, I2)
 
     I1_RGB = single(I) / 255;
     I1_LAB = rgb2lab(I1_RGB);
+    
+    I1_LAB(:,:,1) = I1_LAB(:,:,1) / 100;
+    I1_LAB(:,:,2) = (I1_LAB(:,:,2) + 100) / 200;
+    I1_LAB(:,:,3) = (I1_LAB(:,:,3) + 100) / 200;
 
     foreground_colors = [];
     foreground_colors_rgb = [];
@@ -58,7 +62,7 @@ function [color_model] = DetermineColorModels(I, I2)
     sizes = zeros(size(foreground_colors,1),1) + 10;
     colors = foreground_colors_rgb;
     scatter3(foreground_colors(:,1), foreground_colors(:,2), foreground_colors(:,3), sizes, colors);
-    set(gca,'XLim',[0 100],'YLim',[-100 100],'ZLim',[-100 100]);
+    set(gca,'XLim',[0 1],'YLim',[-1 1],'ZLim',[-1 1]);
     
     xlabel("L");
     ylabel("A");
@@ -68,7 +72,7 @@ function [color_model] = DetermineColorModels(I, I2)
     sizes = zeros(size(background_colors,1),1) + 10;
     colors = background_colors_rgb;
     scatter3(background_colors(:,1), background_colors(:,2), background_colors(:,3), sizes, colors);
-    set(gca,'XLim',[0 100],'YLim',[-100 100],'ZLim',[-100 100]);
+    set(gca,'XLim',[0 1],'YLim',[-1 1],'ZLim',[-1 1]);
     
     xlabel("L");
     ylabel("A");
