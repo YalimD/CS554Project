@@ -26,6 +26,7 @@ function [log_prob] = CalculatePixelProb(voxel_count, bounds, images, color_mode
         image_points = worldToImage(camera_intrinsic, rot, trans, world_points);
         
         current_image = images{cam_i};
+        current_image = rgb2lab(current_image);
         
         % Filter out of image points
         lowerLimit = and(image_points(:,1) >= 1,image_points(:,2) >= 1);
