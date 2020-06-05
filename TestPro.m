@@ -2,6 +2,12 @@ clear all;
 close all;
 clc;
 
+%%
+%Some code directly used from:
+% SFM For 2 Views: https://www.mathworks.com/help/vision/examples/structure-from-motion-from-two-views.html
+% SFM For N Views: https://www.mathworks.com/help/vision/examples/structure-from-motion-from-multiple-views.html
+% VoxelPlotter by Itzik Ben Shabat: https://www.mathworks.com/matlabcentral/fileexchange/50802-voxelplotter
+
 %% Load data
 useVideo = true;
 
@@ -64,14 +70,7 @@ progressed_images = 0;
 I = images{1};
 I = undistortImage(I, cameraParams, 'OutputView','valid');
 
-% prevPoints = detectMinEigenFeatures(rgb2gray(I), 'MinQuality', 0.1);
-
-% Create the point tracker
-% tracker = vision.PointTracker('MaxBidirectionalError', 1, 'NumPyramidLevels', 5);
-% prevPoints = prevPoints.Location;
-% initialize(tracker, prevPoints, I);
-
-%Azdapted from SFM code
+%Adapted from SFM code
 border = 50;
 roi = [border, border, size(I, 2)- 2*border, size(I, 1)- 2*border];
 prevPoints   = detectSURFFeatures(rgb2gray(I), 'NumOctaves', 8);

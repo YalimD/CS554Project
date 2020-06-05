@@ -5,7 +5,7 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
     %that means equal probability of being either background or foregorund
     %%TODO: We might also increase this towards center of the volume
     
-    %TODO: Voxel must be placed such that its center is 0,0,0. This is
+    %Voxel must be placed such that its center is 0,0,0. This is
     %necessary for it to be compliant with the camera extrinsic parameters
     voxel_count = 20;
     u_volume = zeros(voxel_count,voxel_count,voxel_count);
@@ -112,6 +112,7 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
         u_volume = u_volume_next;
 
         fprintf('Done with iteration %d \n', n);
+       
         
         [vol_handle]=VoxelPlotter(round(u_volume),1); 
         %visual effects (I recommend using the FigureRotator function from MATLAB
@@ -124,6 +125,7 @@ function [u_volume] = Volume(images, color_model, camera_intrinsics, cameras)
         ylabel("Y");
         zlabel("Z");
         
+        saveas(gcf,'volume_voxels.png');
     end
 
 

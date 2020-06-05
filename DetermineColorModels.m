@@ -57,7 +57,6 @@ function [color_model] = DetermineColorModels(I, I2)
     end
     
     %% Visualize the colors
-    %TODO: Visualize the model centers etc.
     figure;
     sizes = zeros(size(foreground_colors,1),1) + 10;
     colors = foreground_colors_rgb;
